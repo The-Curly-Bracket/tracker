@@ -1,53 +1,81 @@
-// Calling packages
-const Discord = require('discord.js');
-const bot = new Discord.Client();
-const fs = require('fs');
-const eli = require('eliapi')
+const Discord = require("discord.js");
+const fs = require("fs");
+const eliapi = require("eliapi");
 
-// Authenticate
-try {
-    bot.token = JSON.parse(fs.readFileSync('/home/pibot/Coding/tracker/token.json'));
-}
-catch(err) {
-    bot.token = JSON.parse(fs.readFileSync('token.json'));
-}
-console.log(`Logging in with token: ${bot.token}`)
-bot.login(bot.token);
-console.log('Bot started successfully');
 
-// Command handler
-bot.commands = new Discord.Collection();
+const config = require("./config.json");
+const client = new Discord.Client();
+client.login(config.token);
+eliapi.log(0, `logged in`);
+
+client.commands = new Discord.Collection();
+
+const shutdown = InteruptCode => {
+  client.destroy();
+  eliapi.log(0, `shuting down: ${InteruptCode}`);
+}
+
 fs.readdir('./commands/', (err, files) => {
-	if (err) console.error(err);
+  if (err) eliapi.log(2, err);
 
-	let jsfiles = files.filter(f => f.split('.').pop() === 'js');
-	if (jsfiles.length <= 0) { return console.log('No commands found...') }
-	else { console.log(`${jsfiles.length} commands found.`) }
+  let jsfiles = files.filter(f => f.split('.').pop() === 'js');
+  if (jsfiles.length <= 0) {
+    return eliapi.log(2, 'No commands found')
+  } else {
+    eliapi.log(0, `${jsfiles.length} commands found.`)
+  }
 
-	jsfiles.forEach((f, i) => {
-		let cmds = require(`./commands/${f}`);
-		console.log(`Command ${f} loaded.`);
-		bot.commands.set(cmds.config.name, cmds);
-		try {cmds.init(bot)} catch {}
-	})
+  jsfiles.forEach((f, i) => {
+    let cmds = require(`./commands/${f}`);
+    cmds.config.names.forEach((name, i) => {
+      client.commands.set(cmds.config.names[i], cmds);
+    });
+    eliapi.log(0, `Command ${f} loaded`);
+  })
 });
 
-// Error handler
-bot.on('error', console.error);
+client.on("message", async msg => {
 
-// Config
-const prefix = '';
-const userID = 'PLACEHOLDER';
+  if (msg.channel.type != "text") return;
 
-// More setup
-bot.on('ready', () => {
-    bot.user.setStatus('online');
-    console.log(`Launch completed at ${new Date()}`);
+  if (config.admins.indexOf(msg.author.id) != -1) {
+    msg.author.auth = 4;
+  } else if (msg.member.hasPermission("ADMINISTRATOR")) {
+    msg.author.auth = 3;
+  } else if (msg.member.hasPermission("MANAGE_MESSAGES")) {
+    msg.author.auth = 2;
+  } else {
+    msg.author.auth = 1;
+  }
+
+  eliapi.log(4, `${msg.guild.name}: #${msg.channel.name}: (${msg.author.auth})<${msg.author.username}> ${msg.content}`);
+
+  if (!msg.content.startsWith(config.prefix)) return;
+
+  let content = msg.content.slice(config.prefix.length).split(" ");
+  let args = content.slice(1);
+
+  let cmd = client.commands.get(content[0]);
+
+  if (cmd) {
+    if (msg.author.auth >= cmd.config.auth) {
+      let output = await cmd.run(client, msg, args)
+        .catch(err => {
+          eliapi.log(2, err);
+          config.admins.forEach(admin => {
+            client.users.get(admin).send(err);
+          })
+        })
+      if (output != 0) {
+        msg.reply(`Error: ${output} \n Usage:  ${cmd.config.usage}`)
+          .then(mesg => mesg.delete(8000));
+      }
+    } else {
+      msg.channel.send(":x: Insufficient permissions");
+    }
+    return;
+  }
 });
 
-// Command Listener
-bot.on('message', async message => {
-
-    
-
-});
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
