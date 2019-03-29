@@ -1,20 +1,20 @@
+// Call packages
 const Discord = require("discord.js");
 const fs = require("fs");
 const eliapi = require("eliapi");
-
-
 const config = require("./config.json");
 const client = new Discord.Client();
+
+// Bot login
 client.login(config.token);
 eliapi.log(0, `logged in`);
-
-client.commands = new Discord.Collection();
-
 const shutdown = InteruptCode => {
   client.destroy();
   eliapi.log(0, `shuting down: ${InteruptCode}`);
 }
 
+// Command handler
+client.commands = new Discord.Collection();
 fs.readdir('./commands/', (err, files) => {
   if (err) eliapi.log(2, err);
 
@@ -34,10 +34,12 @@ fs.readdir('./commands/', (err, files) => {
   })
 });
 
+
+// Message listener
 client.on("message", async msg => {
 
   if (msg.channel.type != "text") return;
-
+  // Authentication
   if (config.admins.indexOf(msg.author.id) != -1) {
     msg.author.auth = 4;
   } else if (msg.member.hasPermission("ADMINISTRATOR")) {
@@ -48,13 +50,12 @@ client.on("message", async msg => {
     msg.author.auth = 1;
   }
 
-  eliapi.log(4, `${msg.guild.name}: #${msg.channel.name}: (${msg.author.auth})<${msg.author.username}> ${msg.content}`);
 
+  // Command related things
   if (!msg.content.startsWith(config.prefix)) return;
-
+  eliapi.log(4, `${msg.guild.name}: #${msg.channel.name}: (${msg.author.auth})<${msg.author.username}> ${msg.content}`);
   let content = msg.content.slice(config.prefix.length).split(" ");
   let args = content.slice(1);
-
   let cmd = client.commands.get(content[0]);
 
   if (cmd) {
