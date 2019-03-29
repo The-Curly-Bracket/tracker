@@ -8,9 +8,9 @@ const client = new Discord.Client();
 // Bot login
 client.login(config.token);
 eliapi.log(0, `logged in`);
-const shutdown = InteruptCode => {
+const shutdown = InterruptCode => {
   client.destroy();
-  eliapi.log(0, `shuting down: ${InteruptCode}`);
+  eliapi.log(0, `shutting down: ${InterruptCode}`);
 }
 
 // Command handler
@@ -22,7 +22,7 @@ fs.readdir('./commands/', (err, files) => {
   if (jsfiles.length <= 0) {
     return eliapi.log(2, 'No commands found')
   } else {
-    eliapi.log(0, `${jsfiles.length} commands found.`)
+    eliapi.log(0, `${jsfiles.length} commands found`)
   }
 
   jsfiles.forEach((f, i) => {
@@ -32,6 +32,14 @@ fs.readdir('./commands/', (err, files) => {
     });
     eliapi.log(0, `Command ${f} loaded`);
   })
+});
+
+client.blacklist = require('./blacklist.json');
+
+// Startup
+client.on('ready', () => {
+  client.user.setStatus('online');
+  console.log(`Launch completed at ${new Date()}`);
 });
 
 
